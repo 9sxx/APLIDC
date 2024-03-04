@@ -26,28 +26,37 @@ def balance_data_with_smote(data, drop_columns, target_column, sampling_strategy
 
 
 # 生成K折伪标签
-def generate_pseudo_labels(X_unlabeled, X_train, y_train, classifier: BaseEstimator, n_splits=5, random_state=42):
+def generate_pseudo_labels(X_unlabeled, X_train, y_train, classifier: BaseEstimator, pseudo_labels=-1, n_splits=5, random_state=42):
     """
-    使用K折交叉验证生成伪标签。
+    使用K折交叉验证生成伪标签，并将这些伪标签与未标记数据对应起来，最后返回一个包含数据和伪标签的DataFrame。
+    :param pseudo_labels: 伪标签
     :param X_unlabeled: 未标记的数据集
     :param X_train: 训练数据集
     :param y_train: 训练数据集的目标值
     :param classifier: 用户指定的分类器实例
     :param n_splits: K折分割的数量
     :param random_state: 随机种子
-    :return: 伪标签数组
+    :return: 包含伪标签的DataFrame
     """
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-    pseudo_labels = []
+    # 初始化一个空的DataFrame来存储伪标签和数据
+    pseudo_labeled_data = pd.DataFrame()
     for train_index, test_index in kf.split(X_unlabeled):
         X_train_fold, X_test_fold = X_unlabeled.iloc[train_index], X_unlabeled.iloc[test_index]
         X_combined = pd.concat([X_train, X_train_fold])
-        y_combined = pd.concat([y_train, pd.Series([-1] * len(X_train_fold))])
+        y_combined = pd.concat([y_train, pd.Series([pseudo_labels] * len(X_train_fold))])
         # 使用用户提供的分类器实例进行训练
         classifier.fit(X_combined, y_combined)
+        # 生成伪标签
         pseudo_label = classifier.predict(X_test_fold)
-        pseudo_labels.append(pseudo_label)
-    return np.concatenate(pseudo_labels)
+        # 创建一个临时DataFrame来存储伪标签和对应的数据
+        temp_df = X_test_fold.copy()
+        temp_df['pseudo_label'] = pseudo_label
+        # 将这个临时DataFrame合并到最终的DataFrame中
+        pseudo_labeled_data = pd.concat([pseudo_labeled_data, temp_df])
+    # 重新索引
+    pseudo_labeled_data.reset_index(drop=True, inplace=True)
+    return pseudo_labeled_data
 
 
 # 根据阈值删除难以分辨的训练样本
@@ -95,9 +104,10 @@ def filter_difficult_samples(X_train, y_train, model, thresholds):
 
 
 # 使用预测结果增强训练集并更新模型
-def enhance_training_set_and_update_model(X_train, y_train, X_test, classifier: BaseEstimator, threshold=0.65):
+def enhance_training_set_and_update_model(X_train, y_train, X_test, classifier: BaseEstimator, pseudo_labels=-1, threshold=0.65):
     """
     使用模型预测结果来增强训练集，并更新模型。
+    :param pseudo_labels: 伪标签
     :param X_train: 原始训练数据集
     :param y_train: 原始训练数据集的目标值
     :param X_test: 测试数据集
@@ -107,14 +117,14 @@ def enhance_training_set_and_update_model(X_train, y_train, X_test, classifier: 
     """
     # 使用用户提供的分类器实例对测试集进行预测
     y_pred_proba = classifier.predict_proba(X_test)
-    y_pred_final = [np.argmax(pred) if max(pred) > threshold else -1 for pred in y_pred_proba]
+    y_pred_final = [np.argmax(pred) if max(pred) > threshold else pseudo_labels for pred in y_pred_proba]
 
     # 将预测结果合并到测试集中
     X_test['label'] = y_pred_final
 
     # 分离标记过的测试数据和未标记的测试数据
-    X_test_labeled = X_test[X_test['label'] != -1]
-    X_test_unlabeled = X_test[X_test['label'] == -1].drop('label', axis=1)
+    X_test_labeled = X_test[X_test['label'] != pseudo_labels]
+    X_test_unlabeled = X_test[X_test['label'] == pseudo_labels].drop('label', axis=1)
 
     # 将确定的预测结果加入训练集
     X_train_updated = pd.concat([X_train, X_test_labeled.drop('label', axis=1)])
