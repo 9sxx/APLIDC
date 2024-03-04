@@ -1,5 +1,6 @@
 # APLIDC
 本项目旨在提供一组工具，帮助数据科学家和机器学习工程师更有效地处理和优化他们的数据集和模型。本工具集能够处理包括但不限于数据不平衡、未标记数据利用、样本难度过滤、以及训练集的动态增强等挑战。
+<<<<<<< HEAD
 
 ---
 
@@ -37,3 +38,5 @@ classifier, X_test_labeled, X_test_unlabeled = enhance_training_set_and_update_m
 欢迎任何形式的贡献，无论是功能建议、代码改进还是文档补充。请通过GitHub issue或pull request与我们分享您的想法。
 
 ---
+=======
+>>>>>>> 7716593 (Initial commit)
