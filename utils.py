@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import SMOTE, BorderlineSMOTE, SVMSMOTE, ADASYN
 from sklearn.model_selection import KFold
 from sklearn.base import BaseEstimator
 
@@ -8,19 +8,31 @@ pd.options.mode.chained_assignment = None
 
 
 # 使用SMOTE算法平衡数据
-def balance_data_with_smote(data, drop_columns, target_column, sampling_strategy='not majority', random_state=42):
+def balance_data_with_smote(data, drop_columns, target_column, sampling_strategy='not majority', random_state=42, method='regular'):
     """
-    使用SMOTE算法处理数据不平衡问题。
-    :param random_state: 随机种子
-    :param sampling_strategy: 采样方式
+    使用SMOTE算法及其变种处理数据不平衡问题。
     :param data: 数据集
     :param drop_columns: 需要从数据集中删除的列
     :param target_column: 目标列名
+    :param sampling_strategy: 采样方式
+    :param random_state: 随机种子
+    :param method: 使用的SMOTE算法变种，可选'regular', 'borderline', 'svm', 'adasyn'
     :return: 平衡后的特征集和目标列
     """
     X = data.drop([drop_columns, target_column], axis=1)
     y = data[target_column]
-    smote = SMOTE(sampling_strategy=sampling_strategy, random_state=random_state)
+
+    if method == 'regular':
+        smote = SMOTE(sampling_strategy=sampling_strategy, random_state=random_state)
+    elif method == 'borderline':
+        smote = BorderlineSMOTE(sampling_strategy=sampling_strategy, random_state=random_state)
+    elif method == 'svm':
+        smote = SVMSMOTE(sampling_strategy=sampling_strategy, random_state=random_state)
+    elif method == 'adasyn':
+        smote = ADASYN(sampling_strategy=sampling_strategy, random_state=random_state)
+    else:
+        raise ValueError("Unsupported SMOTE method")
+
     X_balanced, y_balanced = smote.fit_resample(X, y)
     return X_balanced, y_balanced
 
