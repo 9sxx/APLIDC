@@ -125,7 +125,7 @@ def enhance_training_set_and_update_model(X_train, y_train, X_test, classifier: 
     :param X_test: 测试数据集
     :param classifier: 用户指定的分类器实例
     :param threshold: 用于确定预测结果是否被接受加入训练集的阈值
-    :return: 更新后的模型，以及用于预测的测试集
+    :return: 更新后的模型，增广后的训练集，增广后的训练集标签，确定标签的测试集以及待测的测试集
     """
     # 使用用户提供的分类器实例对测试集进行预测
     y_pred_proba = classifier.predict_proba(X_test)
@@ -145,5 +145,5 @@ def enhance_training_set_and_update_model(X_train, y_train, X_test, classifier: 
     # 使用更新后的训练集重新训练模型
     classifier.fit(X_train_updated, y_train_updated)
 
-    return classifier, X_test_labeled, X_test_unlabeled
+    return classifier, X_train_updated, y_train_updated, X_test_labeled, X_test_unlabeled
 
