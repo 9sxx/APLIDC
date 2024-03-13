@@ -38,10 +38,10 @@ def balance_data_with_smote(data, drop_columns, target_column, sampling_strategy
 
 
 # 生成K折伪标签
-def generate_pseudo_labels(X_unlabeled, X_train, y_train, classifier: BaseEstimator, pseudo_labels=-1, n_splits=5, random_state=42):
+def generate_pseudo_labels(X_unlabeled, X_train, y_train, classifier: BaseEstimator, pseudo_label=-1, n_splits=5, random_state=42):
     """
     使用K折交叉验证生成伪标签，并将这些伪标签与未标记数据对应起来，最后返回一个包含数据和伪标签的DataFrame。
-    :param pseudo_labels: 伪标签
+    :param pseudo_label: 伪标签
     :param X_unlabeled: 未标记的数据集
     :param X_train: 训练数据集
     :param y_train: 训练数据集的目标值
@@ -56,15 +56,20 @@ def generate_pseudo_labels(X_unlabeled, X_train, y_train, classifier: BaseEstima
     for train_index, test_index in kf.split(X_unlabeled):
         X_train_fold, X_test_fold = X_unlabeled.iloc[train_index], X_unlabeled.iloc[test_index]
         X_combined = pd.concat([X_train, X_train_fold])
-        y_combined = pd.concat([y_train, pd.Series([pseudo_labels] * len(X_train_fold))])
+        y_combined = pd.concat([y_train, pd.Series([pseudo_label] * len(X_train_fold))])
         # 使用用户提供的分类器实例进行训练
         classifier.fit(X_combined, y_combined)
         # 生成伪标签
-        pseudo_label = classifier.predict(X_test_fold)
-        # 创建一个临时DataFrame来存储伪标签和对应的数据
-        temp_df = X_test_fold.copy()
-        temp_df['pseudo_label'] = pseudo_label
-        # 将这个临时DataFrame合并到最终的DataFrame中
+        pseudo_labels = classifier.predict(X_test_fold)
+
+        # 只保留那些伪标签不为-1的样本
+        filtered_indices = pseudo_labels != pseudo_label
+        filtered_X_test_fold = X_test_fold[filtered_indices]
+        filtered_pseudo_labels = pseudo_labels[filtered_indices]
+
+        # 创建一个临时DataFrame来存储伪标签和对应的数据，并将其加入最终的DataFrame中
+        temp_df = filtered_X_test_fold.copy()
+        temp_df['pseudo_label'] = filtered_pseudo_labels
         pseudo_labeled_data = pd.concat([pseudo_labeled_data, temp_df])
     # 重新索引
     pseudo_labeled_data.reset_index(drop=True, inplace=True)
